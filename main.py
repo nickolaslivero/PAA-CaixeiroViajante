@@ -1,6 +1,6 @@
 import numpy as np
 import random
-import itertools
+import matplotlib.pyplot as plt
 
 # Função para calcular a distância total de uma rota
 def calculate_total_distance(route, distance_matrix):
@@ -58,7 +58,8 @@ def mutate(route, mutation_rate):
 def genetic_algorithm(distance_matrix, pop_size=100, elite_size=20, mutation_rate=0.01, generations=500):
     num_locations = len(distance_matrix)
     population = create_initial_population(pop_size, num_locations)
-    
+    best_distances = []
+
     for generation in range(generations):
         # Avalia a aptidão de cada rota com base na distância total
         fitness = np.array([1 / calculate_total_distance(route, distance_matrix) for route in population])
@@ -80,30 +81,88 @@ def genetic_algorithm(distance_matrix, pop_size=100, elite_size=20, mutation_rat
             new_population.append(mutate(child, mutation_rate))
         
         population = new_population
+        
+        # Armazena a melhor distância da geração
+        best_distance = calculate_total_distance(min(population, key=lambda route: calculate_total_distance(route, distance_matrix)), distance_matrix)
+        best_distances.append(best_distance)
     
     # Encontra a melhor rota e a distância mínima
     best_route = min(population, key=lambda route: calculate_total_distance(route, distance_matrix))
     best_distance = calculate_total_distance(best_route, distance_matrix)
     
-    return best_route, best_distance
+    return best_route, best_distance, best_distances
+
+# Função para plotar a rota
+def plot_route(route, coordinates, tourist_spots, title, ax, color='blue'):
+    route_points = [coordinates[i] for i in route]
+    route_points.append(route_points[0])  # Adiciona o ponto inicial ao final para fechar o ciclo
+    
+    x = [point[0] for point in route_points]
+    y = [point[1] for point in route_points]
+    ax.plot(x, y, 'o-', color=color)
+    
+    for i, spot in enumerate(route_points[:-1]):
+        ax.annotate(tourist_spots[route[i]], (spot[0], spot[1]))
+    
+    ax.set_title(title)
+    ax.set_xlabel("Coordenada X")
+    ax.set_ylabel("Coordenada Y")
+
+# Função para plotar a evolução da distância mínima
+def plot_evolution(best_distances, ax):
+    ax.plot(best_distances)
+    ax.set_title('Evolução da Distância Mínima')
+    ax.set_xlabel('Gerações')
+    ax.set_ylabel('Distância Mínima')
+
+# Função para calcular a matriz de distâncias
+def calculate_distance_matrix(coordinates):
+    num_locations = len(coordinates)
+    distance_matrix = np.zeros((num_locations, num_locations))
+    for i in range(num_locations):
+        for j in range(num_locations):
+            distance_matrix[i][j] = np.linalg.norm(np.array(coordinates[i]) - np.array(coordinates[j]))
+    return distance_matrix
 
 # Exemplo de uso com pontos turísticos
 if __name__ == "__main__":
-    # Matriz de distâncias entre pontos turísticos (exemplo)
-    distance_matrix = np.array([
-        [0, 29, 20, 21],  # Ponto Turístico A
-        [29, 0, 15, 17],  # Ponto Turístico B
-        [20, 15, 0, 28],  # Ponto Turístico C
-        [21, 17, 28, 0]   # Ponto Turístico D
-    ])
+    # Coordenadas dos pontos turísticos (exemplo)
+    coordinates = [
+        (0, 0), (1, 3), (4, 3), (6, 1), (3, 0),
+        (5, 5), (8, 8), (7, 2)
+    ]
     
-    # Nomes dos pontos turísticos correspondentes à matriz de distâncias
-    tourist_spots = ["Ponto Turístico A", "Ponto Turístico B", "Ponto Turístico C", "Ponto Turístico D"]
+    # Calcular a matriz de distâncias com base nas coordenadas
+    distance_matrix = calculate_distance_matrix(coordinates)
+    
+    # Nomes dos pontos turísticos correspondentes às coordenadas
+    tourist_spots = ["Ponto A", "Ponto B", "Ponto C", "Ponto D", "Ponto E", "Ponto F", "Ponto G", "Ponto H"]
 
-    best_route, best_distance = genetic_algorithm(distance_matrix, pop_size=100, elite_size=20, mutation_rate=0.01, generations=500)
+    best_route, best_distance, best_distances = genetic_algorithm(distance_matrix, pop_size=100, elite_size=20, mutation_rate=0.01, generations=500)
     
     # Traduzindo a rota em nomes de pontos turísticos
     best_route_named = [tourist_spots[i] for i in best_route]
     
     print("Melhor rota:", best_route_named)
     print("Distância mínima:", best_distance)
+    
+    # Criar a figura com subplots
+    fig, axs = plt.subplots(1, 3, figsize=(21, 7))
+    
+    # Plotar a melhor rota
+    plot_route(best_route, coordinates, tourist_spots, "Melhor Rota Encontrada", axs[0], color='blue')
+    
+    # Plotar a evolução da distância mínima
+    plot_evolution(best_distances, axs[1])
+    
+    # Plotar algumas soluções iniciais aleatórias para comparação
+    initial_routes = create_initial_population(5, len(coordinates))
+    colors = ['gray', 'red', 'green', 'purple', 'orange']
+    for i, route in enumerate(initial_routes):
+        plot_route(route, coordinates, tourist_spots, f"Solução Inicial {i+1}", axs[2], color=colors[i])
+    
+    # Adicionar a melhor rota também no terceiro gráfico para comparação
+    plot_route(best_route, coordinates, tourist_spots, "Comparação com Melhor Rota", axs[2], color='blue')
+    
+    plt.tight_layout()
+    plt.show()
